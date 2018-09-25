@@ -26,7 +26,7 @@ and third-party support for handling CSV data in PHP.
   how different programs like Excel for example outputs CSV data.
 * Support for character encoding conversion using PHP's
   `iconv()` and `mb_convert_encoding()` functions.
-* Supports PHP 5.4 and higher.
+* Supports PHP 5.5 and higher.
   It certainly works with PHP 7.2 and all versions in between.
 
 ## Installation
@@ -75,6 +75,40 @@ print_r($csv->data);
 $csv = new ParseCsv\Csv();
 $csv->auto('data.csv');
 print_r($csv->data);
+```
+
+**Parse data with offset**
+* ignoring the first X (e.g. two) rows
+```php
+$csv = new ParseCsv\Csv();
+$csv->offset = 2;
+$csv->parse('data.csv');
+print_r($csv->data);
+```
+
+**Limit the number of returned data rows**
+```php
+$csv = new ParseCsv\Csv();
+$csv->limit = 5;
+$csv->parse('data.csv');
+print_r($csv->data);
+```
+
+**Get total number of data rows without parsing whole data**
+* Excluding heading line if present (see $csv->header property)
+```php
+$csv = new ParseCsv\Csv();
+$csv->load_data('data.csv');
+$count = $csv->getTotalDataRowCount();
+print_r($count);
+```
+
+**Get most common data type for each column (Requires PHP >= 5.5)**
+
+```php
+$csv = new ParseCsv\Csv('data.csv');
+$csv->getDatatypes()
+print_r($csv->data_types);
 ```
 
 **Modify data in a CSV file**

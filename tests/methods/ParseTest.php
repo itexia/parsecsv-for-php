@@ -22,13 +22,13 @@ class ParseTest extends TestCase {
         $this->csv = new Csv();
     }
 
-    public function test_parse() {
+    public function testParse() {
         // can we trick 'is_readable' into whining? See #67.
-        $this->parse_repetitive_string('c:/looks/like/a/path');
-        $this->parse_repetitive_string('http://looks/like/an/url');
+        $this->parseRepetitiveString('c:/looks/like/a/path');
+        $this->parseRepetitiveString('http://looks/like/an/url');
     }
 
-    private function parse_repetitive_string($content) {
+    private function parseRepetitiveString($content) {
         $this->csv->delimiter = ';';
         $this->csv->heading = false;
         $success = $this->csv->parse(str_repeat($content . ';', 500));
@@ -41,9 +41,11 @@ class ParseTest extends TestCase {
     }
 
     /**
-     * @depends      test_parse
+     * @depends      testParse
      *
      * @dataProvider autoDetectionProvider
+     *
+     * @param string $file
      */
     public function testSepRowAutoDetection($file) {
         // This file (parse_test.php) is encoded in UTF-8, hence comparison will
@@ -96,7 +98,7 @@ class ParseTest extends TestCase {
         ], array_map('next', $actual_data));
     }
 
-    public function test_single_column() {
+    public function testSingleColumn() {
         $this->csv->auto(__DIR__ . '/../example_files/single_column.csv');
         $expected = [
             ['SMS' => '0444'],
@@ -107,11 +109,8 @@ class ParseTest extends TestCase {
         $this->assertEquals($expected, $this->csv->data);
     }
 
-    public function test_Piwik_data() {
-        if (!function_exists('array_column')) {
-            // function only available in PHP >= 5.5
-            return;
-        }
+    public function testMatomoData() {
+        // Matomo (Piwik) export cannot be read with
         $this->csv->use_mb_convert_encoding = true;
         $this->csv->output_encoding = 'UTF-8';
         $this->csv->auto(__DIR__ . '/../example_files/Piwik_API_download.csv');
@@ -130,16 +129,29 @@ class ParseTest extends TestCase {
         ], $aCity);
     }
 
+    public function testWithMultipleNewlines() {
+        $this->csv->auto(__DIR__ . '/../example_files/multiple_empty_lines.csv');
+        $aElse9 = array_column($this->csv->data, 'else9');
+
+        /** @noinspection SpellCheckingInspection */
+        $this->assertEquals([
+            'Abweichung',
+            'Abweichung',
+            'Abweichung',
+            'Alt',
+            'Fehlt',
+            'Neu',
+            'OK',
+            'Fehlt',
+            'Fehlt',
+            'Fehlt',
+        ], $aElse9);
+    }
+
     /**
      * @depends testSepRowAutoDetection
      */
     public function testGetColumnDatatypes() {
-        if (!function_exists('array_column')) {
-            // getDatatypes requires array_column, but that
-            // function is only available in PHP >= 5.5
-            return;
-        }
-
         $this->csv->auto(__DIR__ . '/fixtures/datatype.csv');
         $this->csv->getDatatypes();
         $expected = [
@@ -154,41 +166,10 @@ class ParseTest extends TestCase {
         $this->assertEquals($expected, $this->csv->data_types);
     }
 
-
-    public function testDataArrayKeysWhenSettingOffsetWithHeading() {
-        $this->csv->offset = 2;
-        $this->csv->auto(__DIR__ . '/fixtures/datatype.csv');
-        $expected = [
-            'title',
-            'isbn',
-            'publishedAt',
-            'published',
-            'count',
-            'price'
-        ];
-
-        $this->assertEquals($expected, array_keys($this->csv->data[0]));
-    }
-
-    public function testDataArrayKeysWhenSettingOffsetWithoutHeading() {
-        $this->csv->heading = false;
-        $this->csv->offset = 2;
-        $this->csv->auto(__DIR__ . '/fixtures/datatype.csv');
-        $expected = range(0, 5, 1);
-
-        $this->assertEquals($expected, array_keys($this->csv->data[0]));
-    }
-
     /**
      * @depends testSepRowAutoDetection
      */
-    public function testAutoDetectFileHasHeading(){
-        if (!function_exists('array_column')) {
-            // getDatatypes requires array_column, but that
-            // function is only available in PHP >= 5.5
-            return;
-        }
-
+    public function testAutoDetectFileHasHeading() {
         $this->csv->auto(__DIR__ . '/fixtures/datatype.csv');
         $this->assertTrue($this->csv->autoDetectFileHasHeading());
 
@@ -205,7 +186,11 @@ class ParseTest extends TestCase {
         $sInput = "86545235689\r\n34365587654\r\n13469874576";
         $this->csv->auto($sInput);
         $this->assertFalse($this->csv->autoDetectFileHasHeading());
+    }
 
+    public function testVeryLongNonExistingFile() {
+        $this->csv->parse(str_repeat('long_string', PHP_MAXPATHLEN));
+        $this->csv->auto(str_repeat('long_string', PHP_MAXPATHLEN));
     }
 
     protected function _get_magazines_data() {
@@ -259,12 +244,24 @@ class ParseTest extends TestCase {
      *
      * @return mixed Method return.
      */
-    private function invokeMethod(&$object, $methodName, array $parameters = array())
-    {
+    private function invokeMethod(&$object, $methodName, array $parameters = array()) {
         $reflection = new \ReflectionClass(get_class($object));
         $method = $reflection->getMethod($methodName);
         $method->setAccessible(true);
 
         return $method->invokeArgs($object, $parameters);
+    }
+
+    public function testWaiverFieldSeparator() {
+        $this->assertSame(false, $this->csv->auto(__DIR__ . '/../example_files/waiver_field_separator.csv'));
+        $expected = [
+            'liability waiver',
+            'release of liability form',
+            'release of liability',
+            'sample waiver',
+            'sample waiver form',
+        ];
+        $actual = array_column($this->csv->data, 'keyword');
+        $this->assertSame($expected, $actual);
     }
 }
